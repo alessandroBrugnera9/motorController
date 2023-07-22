@@ -1,5 +1,5 @@
 #include "MotorHandler.h"
-//TODO: organize the funcitons in this file
+// TODO: organize the funcitons in this file
 
 float *MotorHandler::buildPositionPackage(float tarPos)
 {
@@ -76,8 +76,7 @@ MotorHandler::MotorHandler(MCP_CAN &CAN, int canId, float _kp, float _kd) : canH
   setKp(_kp);
   setKd(_kd);
 
-  //NEED: set commandBuffer to postion zero
-  
+  // NEED: set commandBuffer to postion zero
 }
 
 void MotorHandler::setKp(float _kp)
@@ -204,14 +203,18 @@ void MotorHandler::clearCANBuffer()
   }
 }
 
-motorResponse MotorHandler::getMotorResponse()
+motorResponse MotorHandler::getMotorResponse(boolean sendLastCommand = true)
 {
-  canHandler.sendMsgBuf(getId(), 0, 8, commandBuffer);
+  if (sendLastCommand)
+  {
+    canHandler.sendMsgBuf(getId(), 0, 8, commandBuffer);
+  }
 
   // wait for response or timeout in 5 ms
   // NEED: check if timeout is too big
   unsigned long startTime = millis();
-  while (canHandler.checkReceive() != CAN_MSGAVAIL && millis() - startTime < RESPONSE_TIMEOUT);
+  while (canHandler.checkReceive() != CAN_MSGAVAIL && millis() - startTime < RESPONSE_TIMEOUT)
+    ;
 
   if (canHandler.checkReceive() != CAN_MSGAVAIL)
   {

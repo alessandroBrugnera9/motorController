@@ -170,7 +170,7 @@ public:
    * @param clearBuffer A boolean value indicating whether or not to clear the receive buffer.
    * @return A motorResponse struct containing the position, velocity, and current values of the last motor response.
    */
-  motorResponse getMotorResponse();
+  motorResponse getMotorResponse(boolean sendLastCommand = true);
 
   /**
    * Prints the motor response in a formatted and readable manner.
