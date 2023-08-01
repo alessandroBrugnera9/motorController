@@ -62,28 +62,27 @@ void readEthercat()
 
   if (EASYCAT.BufferOut.Byte[0] != 1)
   {
-    // NEED: check if knee or hip comes first
     // reading hip comands
-    hipCommand.mode = EASYCAT.BufferOut.Byte[mode + 8];
-    hipCommand.motorCommandPackage[0] = EASYCAT.BufferOut.Byte[posHigh + 8];
-    hipCommand.motorCommandPackage[1] = EASYCAT.BufferOut.Byte[posLow + 8];
-    hipCommand.motorCommandPackage[2] = EASYCAT.BufferOut.Byte[velHigh + 8];
-    hipCommand.motorCommandPackage[3] = EASYCAT.BufferOut.Byte[velLowKpHigh + 8];
-    hipCommand.motorCommandPackage[4] = EASYCAT.BufferOut.Byte[kpLow + 8];
-    hipCommand.motorCommandPackage[5] = EASYCAT.BufferOut.Byte[kdhigh + 8];
-    hipCommand.motorCommandPackage[6] = EASYCAT.BufferOut.Byte[kdLowTorHigh + 8];
-    hipCommand.motorCommandPackage[7] = EASYCAT.BufferOut.Byte[torLow + 8];
-    
+    hipCommand.mode = EASYCAT.BufferOut.Byte[mode];
+    hipCommand.motorCommandPackage[0] = EASYCAT.BufferOut.Byte[posHigh];
+    hipCommand.motorCommandPackage[1] = EASYCAT.BufferOut.Byte[posLow];
+    hipCommand.motorCommandPackage[2] = EASYCAT.BufferOut.Byte[velHigh];
+    hipCommand.motorCommandPackage[3] = EASYCAT.BufferOut.Byte[velLowKpHigh];
+    hipCommand.motorCommandPackage[4] = EASYCAT.BufferOut.Byte[kpLow];
+    hipCommand.motorCommandPackage[5] = EASYCAT.BufferOut.Byte[kdhigh];
+    hipCommand.motorCommandPackage[6] = EASYCAT.BufferOut.Byte[kdLowTorHigh];
+    hipCommand.motorCommandPackage[7] = EASYCAT.BufferOut.Byte[torLow];
+
     // reading knee comands
-    kneeCommand.mode = EASYCAT.BufferOut.Byte[mode];
-    kneeCommand.motorCommandPackage[0] = EASYCAT.BufferOut.Byte[posHigh];
-    kneeCommand.motorCommandPackage[1] = EASYCAT.BufferOut.Byte[posLow];
-    kneeCommand.motorCommandPackage[2] = EASYCAT.BufferOut.Byte[velHigh];
-    kneeCommand.motorCommandPackage[3] = EASYCAT.BufferOut.Byte[velLowKpHigh];
-    kneeCommand.motorCommandPackage[4] = EASYCAT.BufferOut.Byte[kpLow];
-    kneeCommand.motorCommandPackage[5] = EASYCAT.BufferOut.Byte[kdhigh];
-    kneeCommand.motorCommandPackage[6] = EASYCAT.BufferOut.Byte[kdLowTorHigh];
-    kneeCommand.motorCommandPackage[7] = EASYCAT.BufferOut.Byte[torLow];
+    kneeCommand.mode = EASYCAT.BufferOut.Byte[mode + 8];
+    kneeCommand.motorCommandPackage[0] = EASYCAT.BufferOut.Byte[posHigh + 8];
+    kneeCommand.motorCommandPackage[1] = EASYCAT.BufferOut.Byte[posLow + 8];
+    kneeCommand.motorCommandPackage[2] = EASYCAT.BufferOut.Byte[velHigh + 8];
+    kneeCommand.motorCommandPackage[3] = EASYCAT.BufferOut.Byte[velLowKpHigh + 8];
+    kneeCommand.motorCommandPackage[4] = EASYCAT.BufferOut.Byte[kpLow + 8];
+    kneeCommand.motorCommandPackage[5] = EASYCAT.BufferOut.Byte[kdhigh + 8];
+    kneeCommand.motorCommandPackage[6] = EASYCAT.BufferOut.Byte[kdLowTorHigh + 8];
+    kneeCommand.motorCommandPackage[7] = EASYCAT.BufferOut.Byte[torLow + 8];
   }
   else
   {
@@ -99,14 +98,10 @@ void sendEthercat()
   // sending responses
   for (byte i = 0; i < 6; i++)
   {
-    // NEED: check if knee or hip comes first
-    EASYCAT.BufferIn.Byte[i] = kneeResponse[i];
-    EASYCAT.BufferIn.Byte[i+6] = hipResponse[i];
+    EASYCAT.BufferIn.Byte[i] = hipResponse[i];
+    EASYCAT.BufferIn.Byte[i + 6] = kneeResponse[i];
   }
-  
 }
-
-
 
 // AUXILIARY FUNCTIONS
 void initializeCanBus()
@@ -122,9 +117,9 @@ void initializeCanBus()
 
 void getMotorsResponses()
 {
-  const unsigned char* hipPointer = hipMotor.getRawMotorResponse();
+  const unsigned char *hipPointer = hipMotor.getRawMotorResponse();
   std::memcpy(hipResponse, hipPointer, 6);
-  const unsigned char* kneePointer = kneeMotor.getRawMotorResponse();
+  const unsigned char *kneePointer = kneeMotor.getRawMotorResponse();
   std::memcpy(kneeResponse, kneePointer, 6);
 }
 
@@ -142,8 +137,6 @@ void sendMotorCommand(motorCommand &command, MotorHandler &motor)
     break;
   }
 }
-
-
 
 void setup()
 {
