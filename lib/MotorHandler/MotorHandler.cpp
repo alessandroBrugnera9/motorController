@@ -300,3 +300,31 @@ motorResponse MotorHandler::handleMotorResponse()
   // Return the MotorResponse struct
   return response;
 }
+
+byte MotorHandler::sendRawCommand(unsigned char *command)
+{
+  // assign commandBuffer to buf
+  std::memcpy(commandBuffer, command, sizeof(commandBuffer));
+  byte sndStat = canHandler.sendMsgBuf(id, 0, 8, commandBuffer);
+  return sndStat;
+}
+
+unsigned char *MotorHandler::getRawMotorResponse()
+{
+  unsigned char motorResponse[6];
+  if (canHandler.checkReceive() != CAN_MSGAVAIL)
+  {
+    memset(motorResponse, 0, 6); // setting array to 0
+  }
+  else
+  {
+    //  Receiving data//
+    unsigned char len = 0;
+    long unsigned int rxId;
+    byte bufReceived[6];
+
+    canHandler.readMsgBuf(&rxId, &len, bufReceived); // CAN BUS reading
+
+    return bufReceived;
+  }
+}

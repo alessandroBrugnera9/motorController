@@ -2,6 +2,8 @@
 #define MOTOR_HANDLER_H
 
 #include <mcp_can.h>
+#include <cstring>
+
 #ifndef dtostrf
 #include <DtoStrf.h>
 #endif
@@ -76,7 +78,7 @@ protected:
   float *buildTorquePackage(float tarTor);
 
   /**
-   * Reads the motor response data from the MCP_CAN bus and returns the values.
+   * Reads the motor response command from the MCP_CAN bus and returns the values.
    *
    * @return A motorResponse struct containing the position, velocity, and current values of the last motor response.
    */
@@ -178,6 +180,23 @@ public:
    * @param res The motorResponse struct containing the position, velocity, and current values.
    */
   void printPrettyResponse(motorResponse res);
+
+
+  // Direct CAN Bus Functions
+  /**
+   * @brief Sends a CAN message to the motor.
+   *
+   * @param command The command to be sent to the motor, that is uint8_t array of size 8. //TODO: detail this command
+   * @return The status of the message send operation (CAN_OK (MCP CAN lib) if successful).
+   */
+  byte sendRawCommand(unsigned char *command);
+
+  /**
+   * @brief Gets reply from the motor.
+   *
+   * @return Return the raw motor response. That is uint8_t array of size 5. //TODO: detail this response
+   */
+  unsigned char* getRawMotorResponse();
 };
 
 #endif
