@@ -203,7 +203,7 @@ void MotorHandler::clearCANBuffer()
   }
 }
 
-motorResponse MotorHandler::getMotorResponse(boolean sendLastCommand = true)
+motorResponse MotorHandler::getMotorResponse(boolean sendLastCommand)
 {
   if (sendLastCommand)
   {
