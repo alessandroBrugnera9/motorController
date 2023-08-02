@@ -20,6 +20,7 @@ struct motorCommand
 {
   uint8_t mode;
   boolean systemOn;
+  boolean systemAtZero;
   uint8_t motorCommandPackage[8];
 };
 
@@ -152,12 +153,12 @@ void getMotorsResponses()
   unsigned char hipRawResponse[6];
   if (hipMotor.getRawMotorResponse(hipRawResponse))
   {
-    std::memcpy(hipResponse, hipRawResponse+1, 5);
+    std::memcpy(hipResponse, hipRawResponse + 1, 5);
   }
   unsigned char kneeRawResponse[6];
   if (kneeMotor.getRawMotorResponse(kneeRawResponse))
   {
-    std::memcpy(kneeResponse, kneeRawResponse+1, 5);
+    std::memcpy(kneeResponse, kneeRawResponse + 1, 5);
   }
 }
 
@@ -182,16 +183,41 @@ void sendMotorCommand(motorCommand &command, MotorHandler &motor)
       command.systemOn = true;
       // TODO: check if response was successful
     }
+    if (command.systemAtZero)
+    {
+      command.systemAtZero = false;
+    }
 
     motor.sendRawCommand(command.motorCommandPackage);
     break;
   case torque:
-    // TODO: implement on on torque mode
+    if (!(command.systemOn))
+    {
+      Serial.println("Turning motor on");
+      hipMotor.enterMotorMode();
+      command.systemOn = true;
+      // TODO: check if response was successful
+    }
+    if (command.systemAtZero)
+    {
+      command.systemAtZero = false;
+    }
     motor.sendRawCommand(command.motorCommandPackage);
     break;
   case zeroPosition:
-    // motor.zeroPosition();
-    Serial.println("Zeroing not implemented yet");
+    if (!command.systemAtZero)
+    {
+      // NEED: think in a better solution for this
+      motor.setKp(0);
+      motor.setKd(0);
+      motor.normalSet(0, 0, 0);
+      motor.zeroPosition();
+      motor.setKp(baseKp);
+      motor.setKd(baseKd);
+      motor.normalSet(0, 0, 0);
+      memcpy(command.motorCommandPackage, motor.getCommandBuffer(), 8);
+      command.systemAtZero = true;
+    }
     break;
   default:
     break;
@@ -227,9 +253,11 @@ void setup()
   hipMotor.exitMotorMode();
   hipMotor.zeroPosition();
   hipCommand.systemOn = false;
+  hipCommand.systemAtZero = true;
   kneeMotor.exitMotorMode();
   kneeMotor.zeroPosition();
   kneeCommand.systemOn = false;
+  kneeCommand.systemAtZero = true;
 
   // Ethercat
   if (EASYCAT.Init() == true) // initilization succesfully completed
