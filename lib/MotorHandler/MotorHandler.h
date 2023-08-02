@@ -181,7 +181,6 @@ public:
    */
   void printPrettyResponse(motorResponse res);
 
-
   // Direct CAN Bus Functions
   /**
    * @brief Sends a CAN message to the motor.
@@ -194,9 +193,18 @@ public:
   /**
    * @brief Gets reply from the motor.
    *
-   * @return Return the raw motor response. That is uint8_t array of size 5. //TODO: detail this response
+   * @param responseBuffer The response from the motor, that is uint8_t array of size 6. //TODO: detail this response
+   * @return Return a boolean value indicating whether or not the response was received.
    */
-  unsigned char* getRawMotorResponse();
+  boolean getRawMotorResponse(unsigned char *responseBuffer);
+
+  // create getter of the commandBuffer
+  /**
+   * @brief Gets the last command sent to the motor.
+   *
+   * @return The last command sent to the motor, that is uint8_t array of size 8. //TODO: detail this command
+   */
+  unsigned char *getCommandBuffer();
 };
 
 #endif

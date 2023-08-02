@@ -309,22 +309,25 @@ byte MotorHandler::sendRawCommand(unsigned char *command)
   return sndStat;
 }
 
-unsigned char *MotorHandler::getRawMotorResponse()
+boolean MotorHandler::getRawMotorResponse(unsigned char *buf)
 {
-  unsigned char motorResponse[6];
   if (canHandler.checkReceive() != CAN_MSGAVAIL)
   {
-    memset(motorResponse, 0, 6); // setting array to 0
+    return false;
   }
   else
   {
     //  Receiving data//
     unsigned char len = 0;
     long unsigned int rxId;
-    byte bufReceived[6];
 
-    canHandler.readMsgBuf(&rxId, &len, bufReceived); // CAN BUS reading
+    canHandler.readMsgBuf(&rxId, &len, buf); // CAN BUS reading
 
-    return bufReceived;
+    return true;
   }
+}
+
+
+unsigned char* MotorHandler::getCommandBuffer() {
+  return commandBuffer;
 }
