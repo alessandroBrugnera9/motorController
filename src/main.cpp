@@ -3,48 +3,21 @@
 #include <MotorHandler.h>
 #include <EasyCAT.h>
 
-// MOTOR CONTROL PARAMTERS
-const int baseKp = 300;
-const int baseKd = 4;
+// DEFINITIONS
 
 // CONTROL VARIABLES
-enum motorMode
+// Communication
+enum motorCANIds
 {
-  turnOff,
-  position,
-  torque,
-  zeroPosition,
+  hipId = 0x01,
+  kneeId = 0x02,
 };
 
-struct motorCommand
+enum SPIPins
 {
-  uint8_t mode;
-  boolean systemOn;
-  boolean systemAtZero;
-  uint8_t motorCommandPackage[8];
+  ethercatPin = 9,
+  canBusPin = 10,
 };
-
-motorCommand hipCommand;
-motorCommand kneeCommand;
-uint8_t hipResponse[5];
-uint8_t kneeResponse[5];
-
-// CONTROL INSTANCES
-// setting can bus handler though SPI pins
-const byte spiCSPin = 10;
-MCP_CAN canHandler(spiCSPin);
-
-// motor object instantiation
-MotorHandler hipMotor(canHandler, 0x01, baseKp, baseKd);
-MotorHandler kneeMotor(canHandler, 0x02, baseKp, baseKd);
-
-// LOOP MEASUREMENT
-unsigned int counter = 0;
-const int nLoops = 100;
-unsigned long microsStart;
-
-// Ethercat COMMUNICATION
-EasyCAT EASYCAT(9); // EasyCAT SPI chip select. Standard is pin 9
 
 enum ethercatBytes
 {
@@ -59,7 +32,50 @@ enum ethercatBytes
   torLow
 };
 
-void getMotorCommand(unsigned char *motorCommandPackage, int startIndex)
+// -
+// Motor Control paramters
+const int baseKp = 300;
+const int baseKd = 4;
+
+enum motorMode
+{
+  turnOff,
+  position,
+  torque,
+  zeroPosition,
+};
+
+struct motorInfo
+{
+  uint8_t mode;
+  boolean systemOn;
+  boolean systemAtZero;
+  uint8_t motorCommandPackage[8];
+  uint8_t response[5];
+};
+
+// --
+// CONTROL INSTANCES
+// Communication
+EasyCAT EASYCAT(ethercatPin);
+MCP_CAN canHandler(canBusPin);
+
+
+// -
+// motor command objects
+motorInfo hipInfo;
+motorInfo kneeInfo;
+
+// Motor Object Instantiation
+MotorHandler hipMotor(canHandler, hipId, baseKp, baseKd);
+MotorHandler kneeMotor(canHandler, kneeId, baseKp, baseKd);
+
+
+
+// --
+// FUNCTIONS
+// Communication
+void getXPCCommand(unsigned char *motorCommandPackage, int startIndex)
 {
   motorCommandPackage[0] = EASYCAT.BufferOut.Byte[posHigh + startIndex];
   motorCommandPackage[1] = EASYCAT.BufferOut.Byte[posLow + startIndex];
@@ -87,23 +103,23 @@ boolean isValidMotorCommand(unsigned char *motorCommandPackage)
 void readEthercat()
 {
   // TODO: decide if this is ISR or not
-  // TODO: read from XPC
 
   // reading hip commands
-  hipCommand.mode = EASYCAT.BufferOut.Byte[mode];
+  hipInfo.mode = EASYCAT.BufferOut.Byte[mode];
   unsigned char motorCommandPackage[8];
-  getMotorCommand(motorCommandPackage, 0);
+  getXPCCommand(motorCommandPackage, 0);
 
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
-    boolean sameCommand = memcmp(hipCommand.motorCommandPackage, motorCommandPackage, 8) == 0;
+    // NEED: remove this checking after testing
+    boolean sameCommand = memcmp(hipInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
 
     if (!sameCommand)
     {
       Serial.println("New hip command");
-      // Store the valid motor command in hipCommand.
-      memcpy(hipCommand.motorCommandPackage, motorCommandPackage, 8);
+      // Store the valid motor command in hipInfo.
+      memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
     }
   }
   else
@@ -111,32 +127,38 @@ void readEthercat()
     // TODO: handle invalid command
   }
 
-  // reading knee comands
-  // kneeCommand.mode = EASYCAT.BufferOut.Byte[mode + 9];
-  // unsigned char *kneePointer = getMotorCommand(8);
-  // if (isValidMotorCommand(kneePointer))
-  // {
-  //   // Serial.print("Knee mode:");
-  //   // Serial.println(kneeCommand.mode);
+  kneeInfo.mode = EASYCAT.BufferOut.Byte[mode + 9];
+  getXPCCommand(motorCommandPackage, 9);
 
-  //   std::memcpy(kneeCommand.motorCommandPackage, kneePointer, 8);
-  // }
+  // Check if the received motor command is valid before storing it.
+  if (isValidMotorCommand(motorCommandPackage))
+  {
+    // NEED: remove this checking after testing
+    boolean sameCommand = memcmp(kneeInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
+
+    if (!sameCommand)
+    {
+      Serial.println("New knee command");
+      // Store the valid motor command in hipInfo.
+      memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
+    }
+  }
+  else
+  {
+    // TODO: handle invalid command
+  }
 }
 
 void sendEthercat()
 {
-  // TODO: handler variables to send to XPC
-  // TODO: send to XPC
-
   // sending responses
   for (byte i = 0; i < 5; i++)
   {
-    EASYCAT.BufferIn.Byte[i] = hipResponse[i];
-    EASYCAT.BufferIn.Byte[i + 5] = kneeResponse[i];
+    EASYCAT.BufferIn.Byte[i] = hipInfo.response[i];
+    EASYCAT.BufferIn.Byte[i + 5] = kneeInfo.response[i];
   }
 }
 
-// AUXILIARY FUNCTIONS
 void initializeCanBus()
 {
   while (CAN_OK != canHandler.begin(MCP_ANY, CAN_1000KBPS, MCP_8MHZ))
@@ -148,21 +170,44 @@ void initializeCanBus()
   Serial.println("CAN Bus init OK");
 }
 
+
+// -
+// Motor
 void getMotorsResponses()
 {
-  unsigned char hipRawResponse[6];
-  if (hipMotor.getRawMotorResponse(hipRawResponse))
+  //  Receiving data//
+  // NEED: check what this rxid is
+  unsigned char len = 0;
+  long unsigned int rxId;
+  unsigned char rawResponse[6];
+
+  for (size_t i = 0; i < 2; i++)
   {
-    std::memcpy(hipResponse, hipRawResponse + 1, 5);
-  }
-  unsigned char kneeRawResponse[6];
-  if (kneeMotor.getRawMotorResponse(kneeRawResponse))
-  {
-    std::memcpy(kneeResponse, kneeRawResponse + 1, 5);
+    if (canHandler.checkReceive() == CAN_MSGAVAIL)
+    {
+      canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
+      // NEED: remove id printing after testing
+      Serial.print("ID: ");
+      Serial.print(rxId);
+      unsigned char messageSenderId = rawResponse[0];
+
+      switch (messageSenderId)
+      {
+      case hipId:
+        std::memcpy(hipInfo.response, rawResponse + 1, 5);
+        break;
+      case kneeId:
+        std::memcpy(kneeInfo.response, rawResponse + 1, 5);
+        break;
+      default:
+        Serial.println("Invalid message sender");
+        break;
+      }
+    }
   }
 }
 
-void sendMotorCommand(motorCommand &command, MotorHandler &motor)
+void sendMotorCommand(motorInfo &command, MotorHandler &motor)
 {
   switch (command.mode)
   {
@@ -179,7 +224,7 @@ void sendMotorCommand(motorCommand &command, MotorHandler &motor)
     if (!(command.systemOn))
     {
       Serial.println("Turning motor on");
-      hipMotor.enterMotorMode();
+      motor.enterMotorMode();
       command.systemOn = true;
       // TODO: check if response was successful
     }
@@ -194,7 +239,7 @@ void sendMotorCommand(motorCommand &command, MotorHandler &motor)
     if (!(command.systemOn))
     {
       Serial.println("Turning motor on");
-      hipMotor.enterMotorMode();
+      motor.enterMotorMode();
       command.systemOn = true;
       // TODO: check if response was successful
     }
@@ -224,22 +269,31 @@ void sendMotorCommand(motorCommand &command, MotorHandler &motor)
   }
 }
 
-unsigned long milisMeasured;
 
+
+// --
 // DEBUGGING
+// NEED: remove this after testing
+unsigned long milisMeasured;
+// Loop Measerement
+unsigned int counter = 0;
+const int nLoops = 100;
+unsigned long microsStart;
 void printHipStatus()
 {
   Serial.print("Hip status: ");
-  Serial.println(hipCommand.mode);
+  Serial.println(hipInfo.mode);
   // print motor command package without string and avoiding memory leaks
   for (int i = 0; i < 8; i++)
   {
-    Serial.print(hipCommand.motorCommandPackage[i], HEX);
+    Serial.print(hipInfo.motorCommandPackage[i], HEX);
     Serial.print(" ");
   }
   Serial.println();
   milisMeasured = millis();
 }
+
+
 
 void setup()
 {
@@ -252,12 +306,12 @@ void setup()
   // Preparing motor to listen to commands
   hipMotor.exitMotorMode();
   hipMotor.zeroPosition();
-  hipCommand.systemOn = false;
-  hipCommand.systemAtZero = true;
+  hipInfo.systemOn = false;
+  hipInfo.systemAtZero = true;
   kneeMotor.exitMotorMode();
   kneeMotor.zeroPosition();
-  kneeCommand.systemOn = false;
-  kneeCommand.systemAtZero = true;
+  kneeInfo.systemOn = false;
+  kneeInfo.systemAtZero = true;
 
   // Ethercat
   if (EASYCAT.Init() == true) // initilization succesfully completed
@@ -276,8 +330,11 @@ void setup()
   Serial.println("Setup finished.");
 }
 
+
+
 void loop()
 {
+  // NEED: test loop time after successful implementation
   // measure the time for 100 loops
   // if (counter == 0)
   // {
@@ -290,6 +347,8 @@ void loop()
   //   counter = 0;
   // }
   // Check for characters received from the Serial Monitor
+
+  // NEED: remove this after testing
   if (Serial.available() > 0)
   {
     char receivedChar = Serial.read();
@@ -306,7 +365,15 @@ void loop()
       // print motor command package without string and avoiding memory leaks
       for (int i = 0; i < 5; i++)
       {
-        Serial.print(hipResponse[i], HEX);
+        Serial.print(hipInfo.response[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+      Serial.println("Knee response: ");
+      // print motor command package without string and avoiding memory leaks
+      for (int i = 0; i < 5; i++)
+      {
+        Serial.print(kneeInfo.response[i], HEX);
         Serial.print(" ");
       }
       Serial.println();
@@ -328,18 +395,18 @@ void loop()
   }
 
   // every 1second send the status of the motor and the package
-  if (millis() - milisMeasured > 10000)
-  {
-    printHipStatus();
-    milisMeasured = millis();
-  }
+  // if (millis() - milisMeasured > 10000)
+  // {
+  //   printHipStatus();
+  //   milisMeasured = millis();
+  // }
 
   EASYCAT.MainTask();
   readEthercat();
 
   // send motor commands
-  sendMotorCommand(hipCommand, hipMotor);
-  sendMotorCommand(kneeCommand, kneeMotor);
+  sendMotorCommand(hipInfo, hipMotor);
+  sendMotorCommand(kneeInfo, kneeMotor);
 
   getMotorsResponses();
 
