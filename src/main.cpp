@@ -173,44 +173,50 @@ void initializeCanBus()
 
 // -
 // Motor
-void getMotorsResponses()
+void getMotorResponse(uint8_t desiredId)
 {
   //  Receiving data//
   // NEED: check what this rxid is
   unsigned char len = 0;
   long unsigned int rxId;
   unsigned char rawResponse[6];
-  volatile unsigned char messageSenderId;
+  unsigned char messageSenderId;
 
-  for (size_t i = 0; i < 2; i++)
+  if (canHandler.checkReceive() == CAN_MSGAVAIL)
   {
-    if (canHandler.checkReceive() == CAN_MSGAVAIL)
-    {
-      canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
-      messageSenderId = rawResponse[0];
+    canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
+    messageSenderId = rawResponse[0];
 
-      switch (messageSenderId)
+    if (messageSenderId == desiredId)
+    {
+      if (desiredId == hipId)
       {
-      case hipId:
         std::memcpy(hipInfo.response, rawResponse + 1, 5);
         hipInfo.lastResponseTime = millis();
-        break;
-      case kneeId:
+      }
+      else
+      {
         std::memcpy(kneeInfo.response, rawResponse + 1, 5);
         kneeInfo.lastResponseTime = millis();
-        break;
-      default:
-        Serial.println("Invalid message sender");
-        for (size_t i = 0; i < 6; i++)
-        {
-          Serial.print(rawResponse[i], HEX);
-          Serial.print(" ");
-        }
-        Serial.println();
-        break;
       }
     }
+    else
+    {
+      Serial.print("Not desired ID: ");
+      Serial.println(desiredId);
+      for (size_t i = 0; i < 6; i++)
+      {
+        Serial.print(rawResponse[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+    }
   }
+  else
+  {
+        Serial.print(" CAN BUS EMPTY");
+  }
+  
 }
 
 void sendMotorCommand(motorInfo &command, MotorHandler &motor)
@@ -418,15 +424,17 @@ void loop()
   readEthercat();
 
   // send motor commands
-  sendMotorCommand(kneeInfo, kneeMotor);
   sendMotorCommand(hipInfo, hipMotor);
+  getMotorResponse(hipId);
+  canHandler.clearMsg();
+  sendMotorCommand(kneeInfo, kneeMotor);
+  getMotorResponse(kneeId);
+  canHandler.clearMsg();
 
-  getMotorsResponses();
+
 
   // send to XPC
   sendEthercat();
   counter++;
-
-  canHandler.
 
 }
