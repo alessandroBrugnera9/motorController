@@ -2,18 +2,10 @@
 #define MOTOR_HANDLER_H
 
 #include <mcp_can.h>
+
+#ifndef cstring_h
 #include <cstring>
-
-#ifndef dtostrf
-#include <DtoStrf.h>
 #endif
-
-struct motorResponse
-{
-  float position;
-  float velocity;
-  float current;
-};
 
 class MotorHandler
 {
@@ -49,45 +41,7 @@ private:
   // used to handle the response from the motor
   const uint32_t RESPONSE_TIMEOUT = 5;
 
-protected:
-  /**
-   * @brief Builds the position package for the GIM8115 device.
-   *
-   * This function takes the target position and returns an array of size 2 representing the position package.
-   * @param tarPos The target position.
-   * @return An array of size 2 representing the position package.
-   */
-  float *buildPositionPackage(float tarPos);
-
-  /**
-   * @brief Builds the velocity package for the GIM8115 device.
-   *
-   * This function takes the target velocity and returns an array of size 2 representing the velocity package.
-   * @param tarVel The target velocity.
-   * @return An array of size 2 representing the velocity package.
-   */
-  float *buildVelocityPackage(float tarVel);
-
-  /**
-   * @brief Builds the torque package for the GIM8115 device.
-   *
-   * This function takes the target torque and returns an array of size 2 representing the torque package.
-   * @param tarTor The target torque.
-   * @return An array of size 2 representing the torque package.
-   */
-  float *buildTorquePackage(float tarTor);
-
-  /**
-   * Reads the motor response command from the MCP_CAN bus and returns the values.
-   *
-   * @return A motorResponse struct containing the position, velocity, and current values of the last motor response.
-   */
-  motorResponse handleMotorResponse();
-
 public:
-  // used to handle the response from the motor
-  motorResponse EMPTY_RESPONSE = {float(-1.0), float(-1.0), float(-1.0)};
-
   /**
    * Constructor for MotorHandler class.
    *
@@ -139,48 +93,6 @@ public:
    */
   boolean zeroPosition();
 
-  /**
-   * @brief Sets the motor to a normal mode with target position, velocity, and torque values.
-   *
-   * @param tarPos The target position value.
-   * @param tarVel The target velocity value.
-   * @param tarTor The target torque value.
-   * @return The status of the message send operation (CAN_OK (MCP CAN lib) if successful).
-   */
-  byte normalSet(float tarPos, float tarVel, float tarTor);
-
-  /**
-   * Set the motor to torque mode.
-   *
-   * @param tarTor The target torque value for the motor.
-   */
-  void torqueSet(float tarTor);
-
-  // ---------------------------------------
-  // Motor Response Handling
-  /**
-   * @brief Clears the receive buffer by reading and discarding all available messages.
-   */
-  void clearCANBuffer();
-
-  /**
-   * @brief Retrieves the motor response.
-   *
-   * This function clears the receive buffer, enters or exits motor mode based on the current state,
-   * handles the motor response, and returns the position, velocity, and current values.
-   *
-   * @param clearBuffer A boolean value indicating whether or not to clear the receive buffer.
-   * @return A motorResponse struct containing the position, velocity, and current values of the last motor response.
-   */
-  motorResponse getMotorResponse(boolean sendLastCommand = true);
-
-  /**
-   * Prints the motor response in a formatted and readable manner.
-   *
-   * @param res The motorResponse struct containing the position, velocity, and current values.
-   */
-  void printPrettyResponse(motorResponse res);
-
   // Direct CAN Bus Functions
   /**
    * @brief Sends a CAN message to the motor.
@@ -189,22 +101,5 @@ public:
    * @return The status of the message send operation (CAN_OK (MCP CAN lib) if successful).
    */
   byte sendRawCommand(unsigned char *command);
-
-  /**
-   * @brief Gets reply from the motor.
-   *
-   * @param responseBuffer The response from the motor, that is uint8_t array of size 6. //TODO: detail this response
-   * @return Return a boolean value indicating whether or not the response was received.
-   */
-  boolean getRawMotorResponse(unsigned char *responseBuffer);
-
-  // create getter of the commandBuffer
-  /**
-   * @brief Gets the last command sent to the motor.
-   *
-   * @return The last command sent to the motor, that is uint8_t array of size 8. //TODO: detail this command
-   */
-  unsigned char *getCommandBuffer();
 };
-
 #endif

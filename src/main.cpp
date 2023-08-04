@@ -2,6 +2,7 @@
 #include <mcp_can.h>
 #include <MotorHandler.h>
 #include <EasyCAT.h>
+#include <cstring>
 
 // DEFINITIONS
 const unsigned long motorResponseTimeout = 1650; // 1.6ms
@@ -167,8 +168,6 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
       }
     }
   }
-  Serial.print("TIMEOUT: No response from motor: ");
-  Serial.println(desiredId);
   return;
 }
 
@@ -242,7 +241,7 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
 // NEED: remove this after testing
 // Loop Measerement
 unsigned int counter = 0;
-const int nLoops = 10000;
+const int nLoops = 1000;
 unsigned long microsStart;
 
 void setup()
