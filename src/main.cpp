@@ -110,19 +110,7 @@ void readEthercat()
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
-    // NEED: remove this checking after testing
-    boolean sameCommand = memcmp(hipInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
-
-    if (!sameCommand)
-    {
-      Serial.println("New hip command");
-      // Store the valid motor command in hipInfo.
-      memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
-    }
-  }
-  else
-  {
-    // TODO: handle invalid command
+    memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
   }
 
   kneeInfo.mode = EASYCAT.BufferOut.Byte[mode + 9];
@@ -131,19 +119,7 @@ void readEthercat()
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
-    // NEED: remove this checking after testing
-    boolean sameCommand = memcmp(kneeInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
-
-    if (!sameCommand)
-    {
-      Serial.println("New knee command");
-      // Store the valid motor command in hipInfo.
-      memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
-    }
-  }
-  else
-  {
-    // TODO: handle invalid command
+    memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
   }
 }
 
@@ -161,11 +137,8 @@ void initializeCanBus()
 {
   while (CAN_OK != canHandler.begin(MCP_ANY, CAN_1000KBPS, MCP_8MHZ))
   {
-    Serial.println("CAN Bus initialization failed");
-    Serial.println("Initializing CAN Bus again");
     delay(100);
   }
-  Serial.println("CAN Bus init OK");
 }
 
 // -
@@ -193,8 +166,6 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
       }
     }
   }
-  Serial.print("TIMEOUT: No response from motor: ");
-  Serial.println(desiredId);
   return;
 }
 
@@ -207,7 +178,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
     motor.exitMotorMode();
     if (command.systemOn)
     {
-      Serial.println("Turning motor off");
       command.systemOn = false;
       // TODO: check if response was successful
     }
@@ -219,7 +189,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   case position:
     if (!(command.systemOn))
     {
-      Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
     }
@@ -233,7 +202,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   case torque:
     if (!(command.systemOn))
     {
-      Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
     }
@@ -249,7 +217,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
       // NEED: think in a better solution for this
       motor.sendRawCommand(disableControllerBuf);
       motor.zeroPosition();
-      Serial.println("Zeroing motor");
       command.systemAtZero = true;
     }
     else
@@ -273,8 +240,6 @@ unsigned long microsStart;
 
 void setup()
 {
-  Serial.begin(115200); // Begin Serial port to talk to computer and receive commands
-
   // Begin the CAN Bus and set frequency to 8 MHz and baudrate of 1000kb/s  and the masks and filters disabled.
   initializeCanBus();
   canHandler.setMode(MCP_NORMAL); // Change to normal mode to allow messages to be transmitted and received
@@ -290,36 +255,13 @@ void setup()
   kneeInfo.systemAtZero = true;
 
   // Ethercat
-  if (EASYCAT.Init() == true) // initilization succesfully completed
-  {
-    Serial.println("EtherCAT initialization completed");
-  }
-
-  else // initialization failed
-  {
-    Serial.println("EtherCAT initialization failed");
-  }
+  EASYCAT.Init();
 
   counter = 0;
-  Serial.println("Setup finished.");
 }
 
 void loop()
 {
-  // NEED: test loop time after successful implementation
-  // measure the time for 10000 loops
-  if (counter == 0)
-  {
-    microsStart = micros();
-  }
-  else if (counter == nLoops)
-  {
-    Serial.print("Time for 10000 loops: ");
-    Serial.println(micros() - microsStart);
-    microsStart = micros();
-    counter = 0;
-  }
-
   EASYCAT.MainTask();
   readEthercat();
 
