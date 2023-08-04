@@ -55,7 +55,6 @@ struct motorInfo
   boolean systemAtZero;
   uint8_t motorCommandPackage[8];
   uint8_t response[5];
-  unsigned long lastResponseTime;
 };
 
 // --
@@ -103,8 +102,6 @@ boolean isValidMotorCommand(unsigned char *motorCommandPackage)
 
 void readEthercat()
 {
-  // TODO: decide if this is ISR or not
-
   // reading hip commands
   hipInfo.mode = EASYCAT.BufferOut.Byte[mode];
   unsigned char motorCommandPackage[8];
@@ -176,7 +173,6 @@ void initializeCanBus()
 void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
 {
   //  Receiving data//
-  // NEED: check what this rxid is
   unsigned char len = 0;
   long unsigned int rxId;
   unsigned char rawResponse[6];
@@ -193,7 +189,6 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
       if (messageSenderId == desiredId)
       {
         std::memcpy(motorInfo.response, rawResponse + 1, 5);
-        motorInfo.lastResponseTime = millis();
         return;
       }
     }
@@ -227,7 +222,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
       Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
-      // TODO: check if response was successful
     }
     if (command.systemAtZero)
     {
@@ -242,7 +236,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
       Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
-      // TODO: check if response was successful
     }
     if (command.systemAtZero)
     {
@@ -273,41 +266,10 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
 // --
 // DEBUGGING
 // NEED: remove this after testing
-unsigned long milisMeasured;
 // Loop Measerement
 unsigned int counter = 0;
 const int nLoops = 10000;
 unsigned long microsStart;
-void printHipStatus()
-{
-  Serial.print("Knee status: ");
-  Serial.println(kneeInfo.mode);
-  // print motor command package without string and avoiding memory leaks
-  for (int i = 0; i < 8; i++)
-  {
-    Serial.print(kneeInfo.motorCommandPackage[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
-  milisMeasured = millis();
-}
-
-void readAllCanMessages()
-{
-  unsigned char len = 0;
-  long unsigned int rxId;
-  uint8_t buf[8];
-  while (canHandler.checkReceive() == CAN_MSGAVAIL)
-  {
-    canHandler.readMsgBuf(&rxId, &len, buf);
-    for (size_t i = 0; i < 8; i++)
-    {
-      Serial.print(buf[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
-  }
-}
 
 void setup()
 {
@@ -322,12 +284,10 @@ void setup()
   hipMotor.zeroPosition();
   hipInfo.systemOn = false;
   hipInfo.systemAtZero = true;
-  hipInfo.lastResponseTime = millis();
   kneeMotor.exitMotorMode();
   kneeMotor.zeroPosition();
   kneeInfo.systemOn = false;
   kneeInfo.systemAtZero = true;
-  kneeInfo.lastResponseTime = millis();
 
   // Ethercat
   if (EASYCAT.Init() == true) // initilization succesfully completed
@@ -341,7 +301,6 @@ void setup()
   }
 
   counter = 0;
-  milisMeasured = millis();
   Serial.println("Setup finished.");
 }
 
@@ -360,67 +319,6 @@ void loop()
     microsStart = micros();
     counter = 0;
   }
-  // Check for characters received from the Serial Monitor
-
-  // NEED: remove this after testing
-  if (Serial.available() > 0)
-  {
-    char receivedChar = Serial.read();
-
-    // Perform different actions based on the received character
-    if (receivedChar == 's')
-    {
-      // Action for character 's'
-      printHipStatus();
-    }
-    else if (receivedChar == 'a')
-    {
-      Serial.println("Hip response: ");
-      // print motor command package without string and avoiding memory leaks
-      for (int i = 0; i < 5; i++)
-      {
-        Serial.print(hipInfo.response[i], HEX);
-        Serial.print(" ");
-      }
-      Serial.println();
-      Serial.println("Knee response: ");
-      // print motor command package without string and avoiding memory leaks
-      for (int i = 0; i < 5; i++)
-      {
-        Serial.print(kneeInfo.response[i], HEX);
-        Serial.print(" ");
-      }
-      Serial.println();
-    }
-    else if (receivedChar == 'z')
-    {
-      hipMotor.normalSet(0, 0, 0);
-      // Add your code here for what you want to do when 'z' is received
-    }
-    else if (receivedChar == 'p')
-    {
-      kneeMotor.printPrettyResponse(kneeMotor.getMotorResponse(false));
-    }
-    else if (receivedChar == 'q')
-    {
-      Serial.print("Hip last resonse: ");
-      Serial.println(millis() - hipInfo.lastResponseTime);
-      Serial.print("Knee last resonse: ");
-      Serial.println(millis() - kneeInfo.lastResponseTime);
-    }
-    else
-    {
-      // Invalid character received
-      Serial.println("Invalid character received");
-    }
-  }
-
-  // every 1second send the status of the motor and the package
-  // if (millis() - milisMeasured > 10000)
-  // {
-  //   printHipStatus();
-  //   milisMeasured = millis();
-  // }
 
   EASYCAT.MainTask();
   readEthercat();
