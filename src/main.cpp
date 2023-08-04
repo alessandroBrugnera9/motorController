@@ -214,9 +214,8 @@ void getMotorResponse(uint8_t desiredId)
   }
   else
   {
-        Serial.print(" CAN BUS EMPTY");
+    Serial.print(" CAN BUS EMPTY");
   }
-  
 }
 
 void sendMotorCommand(motorInfo &command, MotorHandler &motor)
@@ -306,6 +305,23 @@ void printHipStatus()
   }
   Serial.println();
   milisMeasured = millis();
+}
+
+void readAllCanMessages()
+{
+  unsigned char len = 0;
+  long unsigned int rxId;
+  uint8_t buf[8];
+  while (canHandler.checkReceive() == CAN_MSGAVAIL)
+  {
+    canHandler.readMsgBuf(&rxId,&len,buf);
+      for (size_t i = 0; i < 8; i++)
+      {
+        Serial.print(buf[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+  }
 }
 
 void setup()
@@ -426,15 +442,14 @@ void loop()
   // send motor commands
   sendMotorCommand(hipInfo, hipMotor);
   getMotorResponse(hipId);
-  canHandler.clearMsg();
+  readAllCanMessages();
+  Serial.println("All messages after hip read");
   sendMotorCommand(kneeInfo, kneeMotor);
   getMotorResponse(kneeId);
-  canHandler.clearMsg();
-
-
+  readAllCanMessages();
+  Serial.println("All messages after knee read");
 
   // send to XPC
   sendEthercat();
   counter++;
-
 }
