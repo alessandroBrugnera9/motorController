@@ -110,43 +110,17 @@ void readEthercat()
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
-    // NEED: remove this checking after testing
-    boolean sameCommand = memcmp(hipInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
-
-    if (!sameCommand)
-    {
-      Serial.println("New hip command");
-      // Store the valid motor command in hipInfo.
-      memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
-    }
+    memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
   }
-  else
-  {
-    // TODO: handle invalid command
-  }
-
   kneeInfo.mode = EASYCAT.BufferOut.Byte[mode + 9];
   getXPCCommand(motorCommandPackage, 9);
 
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
-    // NEED: remove this checking after testing
-    boolean sameCommand = memcmp(kneeInfo.motorCommandPackage, motorCommandPackage, 8) == 0;
-
-    if (!sameCommand)
-    {
-      Serial.println("New knee command");
-      // Store the valid motor command in hipInfo.
-      memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
-    }
-  }
-  else
-  {
-    // TODO: handle invalid command
+    memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
   }
 }
-
 void sendEthercat()
 {
   // sending responses
