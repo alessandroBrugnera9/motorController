@@ -4,7 +4,7 @@
 #include <EasyCAT.h>
 
 // DEFINITIONS
-
+const unsigned long motorResponseTimeout = 1650; // 1.6ms
 // CONTROL VARIABLES
 // Communication
 enum motorCANIds
@@ -173,7 +173,7 @@ void initializeCanBus()
 
 // -
 // Motor
-void getMotorResponse(uint8_t desiredId)
+void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
 {
   //  Receiving data//
   // NEED: check what this rxid is
@@ -182,40 +182,25 @@ void getMotorResponse(uint8_t desiredId)
   unsigned char rawResponse[6];
   unsigned char messageSenderId;
 
-  if (canHandler.checkReceive() == CAN_MSGAVAIL)
+  unsigned long startTime = micros();
+  // while response is not received and timeout of 5 ms is not reached
+  while (micros() - startTime < motorResponseTimeout)
   {
-    canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
-    messageSenderId = rawResponse[0];
-
-    if (messageSenderId == desiredId)
+    if (canHandler.checkReceive() == CAN_MSGAVAIL)
     {
-      if (desiredId == hipId)
+      canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
+      messageSenderId = rawResponse[0];
+      if (messageSenderId == desiredId)
       {
-        std::memcpy(hipInfo.response, rawResponse + 1, 5);
-        hipInfo.lastResponseTime = millis();
-      }
-      else
-      {
-        std::memcpy(kneeInfo.response, rawResponse + 1, 5);
-        kneeInfo.lastResponseTime = millis();
+        std::memcpy(motorInfo.response, rawResponse + 1, 5);
+        motorInfo.lastResponseTime = millis();
+        return;
       }
     }
-    else
-    {
-      Serial.print("Not desired ID: ");
-      Serial.println(desiredId);
-      for (size_t i = 0; i < 6; i++)
-      {
-        Serial.print(rawResponse[i], HEX);
-        Serial.print(" ");
-      }
-      Serial.println();
-    }
   }
-  else
-  {
-    Serial.print(" CAN BUS EMPTY");
-  }
+  Serial.print("TIMEOUT: No response from motor: ");
+  Serial.println(desiredId);
+  return;
 }
 
 void sendMotorCommand(motorInfo &command, MotorHandler &motor)
@@ -314,13 +299,13 @@ void readAllCanMessages()
   uint8_t buf[8];
   while (canHandler.checkReceive() == CAN_MSGAVAIL)
   {
-    canHandler.readMsgBuf(&rxId,&len,buf);
-      for (size_t i = 0; i < 8; i++)
-      {
-        Serial.print(buf[i], HEX);
-        Serial.print(" ");
-      }
-      Serial.println();
+    canHandler.readMsgBuf(&rxId, &len, buf);
+    for (size_t i = 0; i < 8; i++)
+    {
+      Serial.print(buf[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
   }
 }
 
@@ -372,6 +357,7 @@ void loop()
   {
     Serial.print("Time for 10000 loops: ");
     Serial.println(micros() - microsStart);
+    microsStart = micros();
     counter = 0;
   }
   // Check for characters received from the Serial Monitor
@@ -441,13 +427,9 @@ void loop()
 
   // send motor commands
   sendMotorCommand(hipInfo, hipMotor);
-  getMotorResponse(hipId);
-  readAllCanMessages();
-  Serial.println("All messages after hip read");
+  getMotorResponse(hipId, hipInfo);
   sendMotorCommand(kneeInfo, kneeMotor);
-  getMotorResponse(kneeId);
-  readAllCanMessages();
-  Serial.println("All messages after knee read");
+  getMotorResponse(kneeId, kneeInfo);
 
   // send to XPC
   sendEthercat();

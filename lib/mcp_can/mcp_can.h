@@ -102,11 +102,11 @@ class MCP_CAN
  *********************************************************************************************************/
 
     INT8U setMsg(INT32U id, INT8U rtr, INT8U ext, INT8U len, INT8U *pData);        // Set message
+    INT8U clearMsg();                                                   // Clear all message to zero
     INT8U readMsg();                                                    // Read message
     INT8U sendMsg();                                                    // Send message
 
 public:
-    INT8U clearMsg();                                                   // Clear all message to zero
     MCP_CAN(INT8U _CS);
     MCP_CAN(SPIClass *_SPI, INT8U _CS);
     INT8U begin(INT8U idmodeset, INT8U speedset, INT8U clockset);       // Initialize controller parameters
