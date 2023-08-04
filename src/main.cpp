@@ -37,6 +37,9 @@ enum ethercatBytes
 const int baseKp = 300;
 const int baseKd = 4;
 
+unsigned char disableControllerBuf[8] = {
+    0, 0, 0, 0, 0, 0, 0x07, 0xFF};
+
 enum motorMode
 {
   turnOff,
@@ -52,6 +55,7 @@ struct motorInfo
   boolean systemAtZero;
   uint8_t motorCommandPackage[8];
   uint8_t response[5];
+  unsigned long lastResponseTime;
 };
 
 // --
@@ -59,7 +63,6 @@ struct motorInfo
 // Communication
 EasyCAT EASYCAT(ethercatPin);
 MCP_CAN canHandler(canBusPin);
-
 
 // -
 // motor command objects
@@ -69,8 +72,6 @@ motorInfo kneeInfo;
 // Motor Object Instantiation
 MotorHandler hipMotor(canHandler, hipId, baseKp, baseKd);
 MotorHandler kneeMotor(canHandler, kneeId, baseKp, baseKd);
-
-
 
 // --
 // FUNCTIONS
@@ -170,7 +171,6 @@ void initializeCanBus()
   Serial.println("CAN Bus init OK");
 }
 
-
 // -
 // Motor
 void getMotorsResponses()
@@ -180,27 +180,33 @@ void getMotorsResponses()
   unsigned char len = 0;
   long unsigned int rxId;
   unsigned char rawResponse[6];
+  volatile unsigned char messageSenderId;
 
   for (size_t i = 0; i < 2; i++)
   {
     if (canHandler.checkReceive() == CAN_MSGAVAIL)
     {
       canHandler.readMsgBuf(&rxId, &len, rawResponse); // CAN BUS reading
-      // NEED: remove id printing after testing
-      Serial.print("ID: ");
-      Serial.print(rxId);
-      unsigned char messageSenderId = rawResponse[0];
+      messageSenderId = rawResponse[0];
 
       switch (messageSenderId)
       {
       case hipId:
         std::memcpy(hipInfo.response, rawResponse + 1, 5);
+        hipInfo.lastResponseTime = millis();
         break;
       case kneeId:
         std::memcpy(kneeInfo.response, rawResponse + 1, 5);
+        kneeInfo.lastResponseTime = millis();
         break;
       default:
         Serial.println("Invalid message sender");
+        for (size_t i = 0; i < 6; i++)
+        {
+          Serial.print(rawResponse[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println();
         break;
       }
     }
@@ -212,12 +218,17 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   switch (command.mode)
   {
   case turnOff:
+    motor.sendRawCommand(disableControllerBuf);
+    motor.exitMotorMode();
     if (command.systemOn)
     {
       Serial.println("Turning motor off");
-      motor.exitMotorMode();
       command.systemOn = false;
       // TODO: check if response was successful
+    }
+    if (command.systemAtZero)
+    {
+      command.systemAtZero = false;
     }
     break;
   case position:
@@ -253,23 +264,21 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
     if (!command.systemAtZero)
     {
       // NEED: think in a better solution for this
-      motor.setKp(0);
-      motor.setKd(0);
-      motor.normalSet(0, 0, 0);
+      motor.sendRawCommand(disableControllerBuf);
       motor.zeroPosition();
-      motor.setKp(baseKp);
-      motor.setKd(baseKd);
-      motor.normalSet(0, 0, 0);
-      memcpy(command.motorCommandPackage, motor.getCommandBuffer(), 8);
+      Serial.println("Zeroing motor");
       command.systemAtZero = true;
     }
+    else
+    {
+      motor.exitMotorMode();
+    }
+
     break;
   default:
     break;
   }
 }
-
-
 
 // --
 // DEBUGGING
@@ -277,23 +286,21 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
 unsigned long milisMeasured;
 // Loop Measerement
 unsigned int counter = 0;
-const int nLoops = 100;
+const int nLoops = 10000;
 unsigned long microsStart;
 void printHipStatus()
 {
-  Serial.print("Hip status: ");
-  Serial.println(hipInfo.mode);
+  Serial.print("Knee status: ");
+  Serial.println(kneeInfo.mode);
   // print motor command package without string and avoiding memory leaks
   for (int i = 0; i < 8; i++)
   {
-    Serial.print(hipInfo.motorCommandPackage[i], HEX);
+    Serial.print(kneeInfo.motorCommandPackage[i], HEX);
     Serial.print(" ");
   }
   Serial.println();
   milisMeasured = millis();
 }
-
-
 
 void setup()
 {
@@ -308,16 +315,17 @@ void setup()
   hipMotor.zeroPosition();
   hipInfo.systemOn = false;
   hipInfo.systemAtZero = true;
+  hipInfo.lastResponseTime = millis();
   kneeMotor.exitMotorMode();
   kneeMotor.zeroPosition();
   kneeInfo.systemOn = false;
   kneeInfo.systemAtZero = true;
+  kneeInfo.lastResponseTime = millis();
 
   // Ethercat
   if (EASYCAT.Init() == true) // initilization succesfully completed
   {
     Serial.println("EtherCAT initialization completed");
-    EASYCAT.MainTask(); // execute the EasyCAT task
   }
 
   else // initialization failed
@@ -330,22 +338,20 @@ void setup()
   Serial.println("Setup finished.");
 }
 
-
-
 void loop()
 {
   // NEED: test loop time after successful implementation
-  // measure the time for 100 loops
-  // if (counter == 0)
-  // {
-  //   microsStart = micros();
-  // }
-  // else if (counter == nLoops)
-  // {
-  //   Serial.print("Time for 100 loops: ");
-  //   Serial.println(micros() - microsStart);
-  //   counter = 0;
-  // }
+  // measure the time for 10000 loops
+  if (counter == 0)
+  {
+    microsStart = micros();
+  }
+  else if (counter == nLoops)
+  {
+    Serial.print("Time for 10000 loops: ");
+    Serial.println(micros() - microsStart);
+    counter = 0;
+  }
   // Check for characters received from the Serial Monitor
 
   // NEED: remove this after testing
@@ -385,7 +391,14 @@ void loop()
     }
     else if (receivedChar == 'p')
     {
-      hipMotor.printPrettyResponse(hipMotor.getMotorResponse(false));
+      kneeMotor.printPrettyResponse(kneeMotor.getMotorResponse(false));
+    }
+    else if (receivedChar == 'q')
+    {
+      Serial.print("Hip last resonse: ");
+      Serial.println(millis() - hipInfo.lastResponseTime);
+      Serial.print("Knee last resonse: ");
+      Serial.println(millis() - kneeInfo.lastResponseTime);
     }
     else
     {
@@ -405,12 +418,15 @@ void loop()
   readEthercat();
 
   // send motor commands
-  sendMotorCommand(hipInfo, hipMotor);
   sendMotorCommand(kneeInfo, kneeMotor);
+  sendMotorCommand(hipInfo, hipMotor);
 
   getMotorsResponses();
 
   // send to XPC
   sendEthercat();
-  // counter++;
+  counter++;
+
+  canHandler.
+
 }
