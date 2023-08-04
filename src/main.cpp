@@ -258,10 +258,12 @@ void setup()
   hipMotor.zeroPosition();
   hipInfo.systemOn = false;
   hipInfo.systemAtZero = true;
+  hipInfo.mode = turnOff;
   kneeMotor.exitMotorMode();
   kneeMotor.zeroPosition();
   kneeInfo.systemOn = false;
   kneeInfo.systemAtZero = true;
+  hipInfo.mode = turnOff;
 
   // Ethercat
   if (EASYCAT.Init() == true) // initilization succesfully completed
