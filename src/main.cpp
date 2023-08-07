@@ -136,11 +136,8 @@ void initializeCanBus()
 {
   while (CAN_OK != canHandler.begin(MCP_ANY, CAN_1000KBPS, MCP_8MHZ))
   {
-    Serial.println("CAN Bus initialization failed");
-    Serial.println("Initializing CAN Bus again");
     delay(100);
   }
-  Serial.println("CAN Bus init OK");
 }
 
 // -
@@ -180,9 +177,7 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
     motor.exitMotorMode();
     if (command.systemOn)
     {
-      Serial.println("Turning motor off");
       command.systemOn = false;
-      // TODO: check if response was successful
     }
     if (command.systemAtZero)
     {
@@ -192,7 +187,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   case position:
     if (!(command.systemOn))
     {
-      Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
     }
@@ -206,7 +200,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   case torque:
     if (!(command.systemOn))
     {
-      Serial.println("Turning motor on");
       motor.enterMotorMode();
       command.systemOn = true;
     }
@@ -222,7 +215,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
       // NEED: think in a better solution for this
       motor.sendRawCommand(disableControllerBuf);
       motor.zeroPosition();
-      Serial.println("Zeroing motor");
       command.systemAtZero = true;
     }
     else
@@ -236,18 +228,9 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   }
 }
 
-// --
-// DEBUGGING
-// NEED: remove this after testing
-// Loop Measerement
-unsigned int counter = 0;
-const int nLoops = 1000;
-unsigned long microsStart;
 
 void setup()
 {
-  Serial.begin(115200); // Begin Serial port to talk to computer and receive commands
-
   // Begin the CAN Bus and set frequency to 8 MHz and baudrate of 1000kb/s  and the masks and filters disabled.
   initializeCanBus();
   canHandler.setMode(MCP_NORMAL); // Change to normal mode to allow messages to be transmitted and received
@@ -265,36 +248,11 @@ void setup()
   hipInfo.mode = turnOff;
 
   // Ethercat
-  if (EASYCAT.Init() == true) // initilization succesfully completed
-  {
-    Serial.println("EtherCAT initialization completed");
-  }
-
-  else // initialization failed
-  {
-    Serial.println("EtherCAT initialization failed");
-  }
-
-  counter = 0;
-  Serial.println("Setup finished.");
+  EASYCAT.Init();
 }
 
 void loop()
 {
-  // NEED: test loop time after successful implementation
-  // measure the time for 10000 loops
-  if (counter == 0)
-  {
-    microsStart = micros();
-  }
-  else if (counter == nLoops)
-  {
-    Serial.print("Time for 10000 loops: ");
-    Serial.println(micros() - microsStart);
-    microsStart = micros();
-    counter = 0;
-  }
-
   EASYCAT.MainTask();
   readEthercat();
 
@@ -306,5 +264,4 @@ void loop()
 
   // send to XPC
   sendEthercat();
-  counter++;
 }
