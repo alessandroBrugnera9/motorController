@@ -3,9 +3,6 @@
 
 #include <mcp_can.h>
 
-#ifndef cstring_h
-#include <cstring>
-#endif
 
 class MotorHandler
 {

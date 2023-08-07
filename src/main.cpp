@@ -161,7 +161,7 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
       messageSenderId = rawResponse[0];
       if (messageSenderId == desiredId)
       {
-        std::memcpy(motorInfo.response, rawResponse + 1, 5);
+        memcpy(motorInfo.response, rawResponse + 1, 5);
         return;
       }
     }
