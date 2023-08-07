@@ -230,13 +230,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   }
 }
 
-// --
-// DEBUGGING
-// NEED: remove this after testing
-// Loop Measerement
-unsigned int counter = 0;
-const int nLoops = 10000;
-unsigned long microsStart;
 
 void setup()
 {
@@ -256,8 +249,6 @@ void setup()
 
   // Ethercat
   EASYCAT.Init();
-
-  counter = 0;
 }
 
 void loop()
@@ -273,5 +264,4 @@ void loop()
 
   // send to XPC
   sendEthercat();
-  counter++;
 }

@@ -226,24 +226,6 @@ motorResponse MotorHandler::getMotorResponse(boolean sendLastCommand)
   }
 }
 
-void MotorHandler::printPrettyResponse(motorResponse res)
-{
-  char outString[64]; // Array to store serial string
-  char posString[8];  // Position string
-  char velString[8];  // Velocity string
-  char currString[8]; // Current string
-
-  dtostrf(res.position, 6, 3, posString);
-  dtostrf(res.velocity, 6, 3, velString);
-  dtostrf(res.current, 6, 3, currString);
-
-  sprintf(outString, "Position: %s  Velocity: %s  Current: %s", posString, velString, currString);
-  // Serial.println(msgString2);
-
-  // sprintf(outString, "Position: %.3f  Velocity: %.3f  Current: %.3f", res.position, res.velocity, res.current);
-  Serial.println(outString);
-}
-
 byte MotorHandler::normalSet(float tarPos, float tarVel, float tarTor)
 {
   // Call the private functions to build the individual packages

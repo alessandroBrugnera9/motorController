@@ -174,13 +174,6 @@ public:
    */
   motorResponse getMotorResponse(boolean sendLastCommand = true);
 
-  /**
-   * Prints the motor response in a formatted and readable manner.
-   *
-   * @param res The motorResponse struct containing the position, velocity, and current values.
-   */
-  void printPrettyResponse(motorResponse res);
-
   // Direct CAN Bus Functions
   /**
    * @brief Sends a CAN message to the motor.
