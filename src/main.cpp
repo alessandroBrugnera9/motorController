@@ -4,7 +4,7 @@
 #include <EasyCAT.h>
 
 #ifndef VERBOSE_MODE
-#define VERBOSE_MODE 1
+#define VERBOSE_MODE 0
 #endif
 
 #if VERBOSE_MODE
@@ -350,6 +350,11 @@ void loop()
 
 // incrementing verbose counter if verbose mode is on
   #if VERBOSE_MODE
+  // listen to serial and if anything is received force Serial feedback on next loop
+  if (Serial.available() > 0)
+  {
+    verboseCounter = nIterationsVerbose;
+  }
   verboseCounter++;
   #endif
 }
