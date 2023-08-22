@@ -3,8 +3,21 @@
 #include <MotorHandler.h>
 #include <EasyCAT.h>
 
+#ifndef VERBOSE_MODE
+#define VERBOSE_MODE 1
+#endif
+
+#if VERBOSE_MODE
+// DEBUG MODE of MCP_CAN library
+#define DEBUG_MODE 1
+
+// counter to control the verbose mode on the main file
+const int nIterationsVerbose = 1000;
+int verboseCounter = 0;
+#endif
+
 // DEFINITIONS
-const unsigned long motorResponseTimeout = 1650; // 1.6ms
+const unsigned long motorResponseTimeout = 2000; // 1.6ms
 // CONTROL VARIABLES
 // Communication
 enum motorCANIds
@@ -107,6 +120,21 @@ void readEthercat()
   unsigned char motorCommandPackage[8];
   getXPCCommand(motorCommandPackage, 0);
 
+// printing the motor command for hip if verbose mode is on
+#if VERBOSE_MODE
+  if (verboseCounter > nIterationsVerbose)
+  {
+    Serial.print("Hip Command: ");
+    Serial.print(hipInfo.mode);
+    for (byte i = 0; i < 8; i++)
+    {
+      Serial.print(motorCommandPackage[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+#endif
+
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
   {
@@ -115,6 +143,21 @@ void readEthercat()
 
   kneeInfo.mode = EASYCAT.BufferOut.Byte[mode + 9];
   getXPCCommand(motorCommandPackage, 9);
+
+// printing the motor command for knee if verbose mode is on
+#if VERBOSE_MODE
+  if (verboseCounter > nIterationsVerbose)
+  {
+    Serial.print("Hip Command: ");
+    Serial.print(hipInfo.mode);
+    for (byte i = 0; i < 8; i++)
+    {
+      Serial.print(motorCommandPackage[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+#endif
 
   // Check if the received motor command is valid before storing it.
   if (isValidMotorCommand(motorCommandPackage))
@@ -131,6 +174,30 @@ void sendEthercat()
     EASYCAT.BufferIn.Byte[i] = hipInfo.response[i];
     EASYCAT.BufferIn.Byte[i + 5] = kneeInfo.response[i];
   }
+
+// printing the motor response if verbose mode is on
+#if VERBOSE_MODE
+  if (verboseCounter > nIterationsVerbose)
+  {
+    Serial.print("Hip Response: ");
+    for (byte i = 0; i < 5; i++)
+    {
+      Serial.print(hipInfo.response[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
+    Serial.print("Knee Response: ");
+    for (byte i = 0; i < 5; i++)
+    {
+      Serial.print(kneeInfo.response[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
+
+    // Zeroing because it is the last iteration of the loop
+    verboseCounter = 0;
+  }
+#endif
 }
 
 void initializeCanBus()
@@ -166,6 +233,16 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
       }
     }
   }
+
+// printing motor timeout if verbose mode is on
+  #if VERBOSE_MODE
+  if (verboseCounter > nIterationsVerbose)
+  {
+    Serial.print("Response timeout for motor: ");
+    Serial.println(desiredId);
+  }
+  #endif
+
   return;
 }
 
@@ -229,7 +306,6 @@ void sendMotorCommand(motorInfo &command, MotorHandler &motor)
   }
 }
 
-
 void setup()
 {
   // Begin the CAN Bus and set frequency to 8 MHz and baudrate of 1000kb/s  and the masks and filters disabled.
@@ -250,6 +326,12 @@ void setup()
 
   // Ethercat
   EASYCAT.Init();
+
+// turning on serial communication if verbose mode is on
+#if VERBOSE_MODE
+  Serial.begin(115200);
+  Serial.println("Setup finished");
+#endif
 }
 
 void loop()
@@ -265,4 +347,9 @@ void loop()
 
   // send to XPC
   sendEthercat();
+
+// incrementing verbose counter if verbose mode is on
+  #if VERBOSE_MODE
+  verboseCounter++;
+  #endif
 }
