@@ -2,7 +2,6 @@
 #include <mcp_can.h>
 #include <MotorHandler.h>
 #include <EasyCAT.h>
-#include <cstring>
 
 // DEFINITIONS
 const unsigned long motorResponseTimeout = 1650; // 1.6ms
@@ -113,6 +112,7 @@ void readEthercat()
   {
     memcpy(hipInfo.motorCommandPackage, motorCommandPackage, 8);
   }
+
   kneeInfo.mode = EASYCAT.BufferOut.Byte[mode + 9];
   getXPCCommand(motorCommandPackage, 9);
 
@@ -122,6 +122,7 @@ void readEthercat()
     memcpy(kneeInfo.motorCommandPackage, motorCommandPackage, 8);
   }
 }
+
 void sendEthercat()
 {
   // sending responses
