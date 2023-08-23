@@ -126,6 +126,7 @@ void readEthercat()
   {
     Serial.print("Hip Command: ");
     Serial.print(hipInfo.mode);
+    Serial.print(" ");
     for (byte i = 0; i < 8; i++)
     {
       Serial.print(motorCommandPackage[i]);
@@ -150,6 +151,7 @@ void readEthercat()
   {
     Serial.print("Hip Command: ");
     Serial.print(hipInfo.mode);
+    Serial.print(" ");
     for (byte i = 0; i < 8; i++)
     {
       Serial.print(motorCommandPackage[i]);
@@ -234,14 +236,14 @@ void getMotorResponse(uint8_t desiredId, motorInfo &motorInfo)
     }
   }
 
-// printing motor timeout if verbose mode is on
-  #if VERBOSE_MODE
+  // printing motor timeout if verbose mode is on
+#if VERBOSE_MODE
   if (verboseCounter > nIterationsVerbose)
   {
     Serial.print("Response timeout for motor: ");
     Serial.println(desiredId);
   }
-  #endif
+#endif
 
   return;
 }
@@ -348,13 +350,19 @@ void loop()
   // send to XPC
   sendEthercat();
 
-// incrementing verbose counter if verbose mode is on
-  #if VERBOSE_MODE
+  // incrementing verbose counter if verbose mode is on
+#if VERBOSE_MODE
   // listen to serial and if anything is received force Serial feedback on next loop
   if (Serial.available() > 0)
   {
     verboseCounter = nIterationsVerbose;
+
+    // emptying the buffer
+    while (Serial.available() > 0)
+    {
+      Serial.read();
+    }
   }
   verboseCounter++;
-  #endif
+#endif
 }
